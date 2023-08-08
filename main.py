@@ -16,7 +16,7 @@ async def get_trucks():
     try:
         db = get_database()
         collection = db.get_collection("trucks")
-        trucks = collection.find()
+        trucks = list(collection.find())
         
         return {"serialized_trucks": serialize_collection(trucks)}
     except Exception as e:
@@ -29,9 +29,9 @@ async def get_truck(
     try:
         db = get_database()
         collection = db.get_collection("trucks")
-        truck = collection.find_one({"_id": ObjectId(truck_id)})
+        trucks = collection.find_one({"_id": ObjectId(truck_id)})
         
-        return {"serialized_trucks": serialize_collection(truck)}
+        return {"serialized_trucks": serialize_collection(trucks)}
     except Exception as e:
         print("An error occurred:", str(e))
 
