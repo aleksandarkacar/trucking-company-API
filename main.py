@@ -49,7 +49,7 @@ async def create_truck(truck: Truck = Body(...)):
     except Exception as e:
         print("An error occurred:", str(e))
 
-@app.put("/trucks/{truck_id}", response_description="Update a truck", response_model=Truck)
+@app.patch("/trucks/{truck_id}", response_description="Update a truck", response_model=Truck)
 async def update_truck(truck_id: str, truck: UpdateTruckModel = Body(...)):
     truck = {k: v for k, v in truck.dict().items() if v is not None}
 
@@ -67,6 +67,17 @@ async def update_truck(truck_id: str, truck: UpdateTruckModel = Body(...)):
 
     if (existing_truck := collection.find_one({"_id": ObjectId(truck_id)})) is not None:
         return {"existing_truck": existing_truck}
+
+    return({"status_code": 404, "detail": f"Truck {truck_id} not found"})
+
+@app.delete("/trucks/{truck_id}", response_description="Delete a truck")
+async def delete_truck(truck_id: str):
+    
+    collection = db.get_collection("trucks")
+    
+    delete_result = collection.delete_one({"_id": ObjectId(truck_id)})
+    if delete_result.deleted_count == 1:
+        return {"response": "Truck Deleted 204"}
 
     return({"status_code": 404, "detail": f"Truck {truck_id} not found"})
 
