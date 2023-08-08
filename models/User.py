@@ -11,3 +11,4 @@ class User(BaseModel):
     years_of_experience: int = Field(default=None, description="this field represents how many hours of job experience the user has")
     working_area: Optional[str] = Field(default=None, description="this field represents what area the user is working in")
     working_hours_month: int = Field(default=None, description="this field represents how many hours a month the user works")
+    
