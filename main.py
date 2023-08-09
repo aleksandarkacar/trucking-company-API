@@ -59,16 +59,16 @@ async def update_truck(truck_id: str, truck_updates: UpdateTruckModel = Body(...
     truck_updates = {k: v for k, v in truck_updates.dict().items() if v is not None}
 
     collection = db.get_collection("trucks")
+
+    truck = collection.find_one({"_id": ObjectId(truck_id)})
+    if truck is None:
+        raise HTTPException(status_code=404, detail="Truck not found")
     
     if len(truck_updates) >= 1:
-
         collection.update_one({"_id": ObjectId(truck_id)}, {"$set": truck_updates})
 
     if (existing_truck := collection.find_one({"_id": ObjectId(truck_id)})) is not None:
         return serialize_collection(existing_truck)
-
-
-    raise HTTPException(status_code=404, detail=f"Truck {id} not found")
 
 @app.put("/trucks/{truck_id}/add_repair", response_model=Truck)
 async def update_repairs(truck_id: str, repair: RepairModel = Body(...)):
