@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Path, Body
 from fastapi.encoders import jsonable_encoder
 from typing import Annotated
+from models.Repair import RepairModel
 from models.Truck import Truck, UpdateTruckModel
 from get_db_pymongo import get_database
 from bson import ObjectId
@@ -54,27 +55,42 @@ async def create_truck(truck: Truck = Body(...)):
         print("An error occurred:", str(e))
 
 @app.patch("/trucks/{truck_id}", response_description="Update a truck", response_model=Truck)
-async def update_truck(truck_id: str, truck: UpdateTruckModel = Body(...)):
-    truck = {k: v for k, v in truck.dict().items() if v is not None}
-    print({"truck": truck})
+async def update_truck(truck_id: str, truck_updates: UpdateTruckModel = Body(...)):
+    truck_updates = {k: v for k, v in truck_updates.dict().items() if v is not None}
 
-    if len(truck) >= 1:
+    collection = db.get_collection("trucks")
+    
+    if len(truck_updates) >= 1:
 
-        collection = db.get_collection("trucks")
-
-        update_result = collection.update_one({"_id": ObjectId(truck_id)}, {"$set": truck})
-
-        if update_result.modified_count == 1:
-            if (
-                updated_truck := collection.find_one({"_id": ObjectId(truck_id)})
-            ) is not None:
-                return serialize_collection(updated_truck)
+        collection.update_one({"_id": ObjectId(truck_id)}, {"$set": truck_updates})
 
     if (existing_truck := collection.find_one({"_id": ObjectId(truck_id)})) is not None:
-        existing_truck = serialize_collection(existing_truck)
-        return existing_truck
+        return serialize_collection(existing_truck)
+
 
     raise HTTPException(status_code=404, detail=f"Truck {id} not found")
+
+@app.put("/trucks/{truck_id}/add_repair", response_model=Truck)
+async def update_repairs(truck_id: str, repair: RepairModel = Body(...)):
+
+    collection = db.get_collection("trucks")
+
+    truck = collection.find_one({"_id": ObjectId(truck_id)})
+    if truck is None:
+        raise HTTPException(status_code=404, detail="Truck not found")
+
+    repair_history_list = truck.get("repair_history_list", [])
+    repair_history_list.append(repair.dict())
+    
+    update_result = collection.update_one(
+        {"_id": ObjectId(truck_id)},
+        {"$set": {"repair_history_list": repair_history_list}}
+    )
+    if update_result.modified_count == 1:
+        if (existing_truck := collection.find_one({"_id": ObjectId(truck_id)})) is not None:
+            return serialize_collection(existing_truck)
+    
+    raise HTTPException(status_code=500, detail="Failed to update repairs")
 
 @app.delete("/trucks/{truck_id}", response_description="Delete a truck")
 async def delete_truck(truck_id: str):

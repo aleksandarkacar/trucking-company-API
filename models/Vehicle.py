@@ -12,10 +12,9 @@ class Vehicle(BaseModel):
     repair_history_list: list[RepairModel|None] = Field(default=None, description="This feild holds a list of all repairs the vegicle has undergone")
 
     class Config:
-        allow_population_by_field_name = True
+        # allow_population_by_field_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
 class UpdateVehicleModel(BaseModel):
     miles: Optional[int] = Field(default= None, description="This field represents the new miles traveled for the truck")
-    repair_history_list: Optional[list[RepairModel | None]] = Field(default= None, description="This field represents the new repair list of truck")
