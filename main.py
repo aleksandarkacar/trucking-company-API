@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Path, Body
 from fastapi.encoders import jsonable_encoder
 from typing import Annotated
+from models.Dispatcher import Dispatcher, UpdateDispatcherModel
 from models.Repair import RepairModel
 from models.Trailer import Trailer, UpdateTrailerModel
 from models.Truck import Truck, UpdateTruckModel
@@ -342,6 +343,81 @@ async def delete_manager(manager_id: str):
 
     return({"status_code": 404, "detail": f"Manager {manager_id} not found"})
 
+
+
+
+
+#Dispatcher API Paths
+
+
+
+@app.get("/dispatchers/")
+async def get_dispatchers():
+    try:
+        collection = db.get_collection("dispatchers")
+        dispatchers = list(collection.find())
+        
+        return {"serialized_dispatchers": serialize_collection(dispatchers)}
+    except Exception as e:
+        print("An error occurred:", str(e))
+
+
+@app.get("/dispatchers/{dispatcher_id}")
+async def get_dispatcher(
+    dispatcher_id: Annotated[str, Path(title= "id of object to get")]
+):
+    try:
+        collection = db.get_collection("dispatchers")
+        dispatcher = collection.find_one({"_id": ObjectId(dispatcher_id)})
+        
+        return {"serialized_dispatcher": serialize_collection(dispatcher)}
+    except Exception as e:
+        print("An error occurred:", str(e))
+
+@app.post("/dispatchers/", response_description="Add new Truck driver", response_model=Dispatcher)
+async def create_dispatcher(dispatcher: Dispatcher = Body(...)):
+    try:
+        dispatcher = jsonable_encoder(dispatcher)
+        if "_id" in dispatcher:
+            del dispatcher["_id"]
+
+        collection = db.get_collection("dispatchers")
+
+        new_dispatcher = collection.insert_one(dispatcher)
+        created_dispatcher = collection.find_one({"_id": ObjectId(new_dispatcher.inserted_id)})
+        serialized_dispatcher = serialize_collection(created_dispatcher)
+        print({"serialized_dispatcher": serialized_dispatcher})
+        return serialized_dispatcher
+    except Exception as e:
+        print("An error occurred:", str(e))
+
+@app.patch("/dispatchers/{dispatcher_id}", response_description="Update a Truck driver", response_model=Dispatcher)
+async def update_dispatcher(dispatcher_id: str, dispatcher_updates: UpdateDispatcherModel = Body(...)):
+    dispatcher_updates = {k: v for k, v in dispatcher_updates.dict().items() if v is not None}
+
+    collection = db.get_collection("dispatchers")
+    dispatcher = collection.find_one({"_id": ObjectId(dispatcher_id)})
+    if dispatcher is None:
+        raise HTTPException(status_code=404, detail="Truck driver not found")
+    
+    if len(dispatcher_updates) >= 1:
+        collection.update_one({"_id": ObjectId(dispatcher_id)}, {"$set": dispatcher_updates})
+
+    if (existing_dispatcher := collection.find_one({"_id": ObjectId(dispatcher_id)})) is not None:
+        return serialize_collection(existing_dispatcher)
+
+@app.delete("/dispatchers/{dispatcher_id}", response_description="Delete a truck driver")
+async def delete_dispatcher(dispatcher_id: str):
+    
+    collection = db.get_collection("dispatchers")
+    
+    delete_result = collection.delete_one({"_id": ObjectId(dispatcher_id)})
+    if delete_result.deleted_count == 1:
+        return {"response": "Truck driver Deleted 204"}
+
+    return({"status_code": 404, "detail": f"Truck driver {dispatcher_id} not found"})
+
+#TODO Finish PUT paths for manager and dispatcher, and fix what props are optional for truck driver and dispatcher
 
 
 
