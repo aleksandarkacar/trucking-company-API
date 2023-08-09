@@ -4,6 +4,7 @@ from typing import Annotated
 from models.Repair import RepairModel
 from models.Trailer import Trailer, UpdateTrailerModel
 from models.Truck import Truck, UpdateTruckModel
+from models.Manager import Manager, UpdateManagerModel
 from get_db_pymongo import get_database
 from bson import ObjectId
 from models.TruckDriver import TruckDriver, UpdateTruckDriverModel
@@ -44,7 +45,7 @@ async def create_truck(truck: Truck = Body(...)):
     try:
         truck = jsonable_encoder(truck)
         if "_id" in truck:
-            del truck["_id"] #{_id: None} was registering as a duplicate id
+            del truck["_id"]
 
         collection = db.get_collection("trucks")
 
@@ -136,7 +137,7 @@ async def create_trailer(trailer: Trailer = Body(...)):
     try:
         trailer = jsonable_encoder(trailer)
         if "_id" in trailer:
-            del trailer["_id"] #{_id: None} was registering as a duplicate id
+            del trailer["_id"]
 
         collection = db.get_collection("trailers")
 
@@ -230,7 +231,7 @@ async def create_truck_driver(truck_driver: TruckDriver = Body(...)):
     try:
         truck_driver = jsonable_encoder(truck_driver)
         if "_id" in truck_driver:
-            del truck_driver["_id"] #{_id: None} was registering as a duplicate id
+            del truck_driver["_id"]
 
         collection = db.get_collection("truck_drivers")
 
@@ -271,6 +272,75 @@ async def delete_truck_driver(truck_driver_id: str):
 
 
 
+# Manager API Paths:
+
+
+
+@app.get("/managers/")
+async def get_managers():
+    try:
+        collection = db.get_collection("managers")
+        managers = list(collection.find())
+        
+        return {"serialized_managers": serialize_collection(managers)}
+    except Exception as e:
+        print("An error occurred:", str(e))
+
+
+@app.get("/managers/{manager_id}")
+async def get_manager(
+    manager_id: Annotated[str, Path(title= "id of object to get")]
+):
+    try:
+        collection = db.get_collection("managers")
+        manager = collection.find_one({"_id": ObjectId(manager_id)})
+        
+        return {"serialized_manager": serialize_collection(manager)}
+    except Exception as e:
+        print("An error occurred:", str(e))
+
+@app.post("/managers/", response_description="Add new manager", response_model=Manager)
+async def create_manager(manager: Manager = Body(...)):
+    try:
+        manager = jsonable_encoder(manager)
+        if "_id" in manager:
+            del manager["_id"]
+
+        collection = db.get_collection("managers")
+
+        new_manager = collection.insert_one(manager)
+        created_manager = collection.find_one({"_id": ObjectId(new_manager.inserted_id)})
+        serialized_manager = serialize_collection(created_manager)
+        print({"serialized_manager": serialized_manager})
+        return serialized_manager
+    except Exception as e:
+        print("An error occurred:", str(e))
+
+@app.patch("/managers/{manager_id}", response_description="Update a manager", response_model=Manager)
+async def update_manager(manager_id: str, manager_updates: UpdateManagerModel = Body(...)):
+    manager_updates = {k: v for k, v in manager_updates.dict().items() if v is not None}
+
+    collection = db.get_collection("managers")
+    manager = collection.find_one({"_id": ObjectId(manager_id)})
+    if manager is None:
+        raise HTTPException(status_code=404, detail="Manager not found")
+    
+    if len(manager_updates) >= 1:
+        collection.update_one({"_id": ObjectId(manager_id)}, {"$set": manager_updates})
+
+    if (existing_manager := collection.find_one({"_id": ObjectId(manager_id)})) is not None:
+        return serialize_collection(existing_manager)
+
+@app.delete("/managers/{manager_id}", response_description="Delete a manager")
+async def delete_manager(manager_id: str):
+    
+    collection = db.get_collection("managers")
+    
+    delete_result = collection.delete_one({"_id": ObjectId(manager_id)})
+    if delete_result.deleted_count == 1:
+        return {"response": "Manager Deleted 204"}
+
+    return({"status_code": 404, "detail": f"Manager {manager_id} not found"})
 
 
 
