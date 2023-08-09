@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Path, Body
+from fastapi import FastAPI, HTTPException, Path, Body
 from fastapi.encoders import jsonable_encoder
 from typing import Annotated
 from models.Truck import Truck, UpdateTruckModel
@@ -40,18 +40,23 @@ async def get_truck(
 async def create_truck(truck: Truck = Body(...)):
     try:
         truck = jsonable_encoder(truck)
+        if "_id" in truck:
+            del truck["_id"] #{_id: None} was registering as a duplicate id
 
         collection = db.get_collection("trucks")
 
         new_truck = collection.insert_one(truck)
         created_truck = collection.find_one({"_id": ObjectId(new_truck.inserted_id)})
-        return {"created_truck": created_truck}
+        serialized_truck = serialize_collection(created_truck)
+        print({"serialized_truck": serialized_truck})
+        return serialized_truck
     except Exception as e:
         print("An error occurred:", str(e))
 
 @app.patch("/trucks/{truck_id}", response_description="Update a truck", response_model=Truck)
 async def update_truck(truck_id: str, truck: UpdateTruckModel = Body(...)):
     truck = {k: v for k, v in truck.dict().items() if v is not None}
+    print({"truck": truck})
 
     if len(truck) >= 1:
 
@@ -63,12 +68,13 @@ async def update_truck(truck_id: str, truck: UpdateTruckModel = Body(...)):
             if (
                 updated_truck := collection.find_one({"_id": ObjectId(truck_id)})
             ) is not None:
-                return {"updated_truck": updated_truck}
+                return serialize_collection(updated_truck)
 
     if (existing_truck := collection.find_one({"_id": ObjectId(truck_id)})) is not None:
-        return {"existing_truck": existing_truck}
+        existing_truck = serialize_collection(existing_truck)
+        return existing_truck
 
-    return({"status_code": 404, "detail": f"Truck {truck_id} not found"})
+    raise HTTPException(status_code=404, detail=f"Truck {id} not found")
 
 @app.delete("/trucks/{truck_id}", response_description="Delete a truck")
 async def delete_truck(truck_id: str):
