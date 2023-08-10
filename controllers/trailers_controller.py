@@ -1,4 +1,5 @@
 from typing import Annotated
+from controllers.controller_helpers.trailers_helpers import create_trailer_helper, update_repair_helper, update_trailer_helper
 from fastapi import APIRouter, HTTPException, Body, Path
 from fastapi.encoders import jsonable_encoder
 from models.Trailer import Trailer, UpdateTrailerModel
@@ -32,51 +33,17 @@ async def get_trailer(
 @trailers_router.post("/", response_description="Add new trailer", response_model=Trailer)
 async def create_trailer(trailer: Trailer = Body(...)):
     try:
-        trailer = jsonable_encoder(trailer)
-        if "_id" in trailer:
-            del trailer["_id"]
-
-        new_trailer = trailers.insert_one(trailer)
-        created_trailer = trailers.find_one({"_id": ObjectId(new_trailer.inserted_id)})
-        serialized_trailer = serialize_collection(created_trailer)
-        return serialized_trailer
+        return create_trailer_helper(trailer, trailers)
     except Exception as e:
         print("An error occurred:", str(e))
 
 @trailers_router.patch("/{trailer_id}", response_description="Update a trailer", response_model=Trailer)
 async def update_trailer(trailer_id: str, trailer_updates: UpdateTrailerModel = Body(...)):
-    trailer_updates = {k: v for k, v in trailer_updates.dict().items() if v is not None}
-    trailer = trailers.find_one({"_id": ObjectId(trailer_id)})
-    if trailer is None:
-        raise HTTPException(status_code=404, detail="Trailer not found")
-    
-    if len(trailer_updates) >= 1:
-        trailers.update_one({"_id": ObjectId(trailer_id)}, {"$set": trailer_updates})
-
-    if (existing_trailer := trailers.find_one({"_id": ObjectId(trailer_id)})) is not None:
-        return serialize_collection(existing_trailer)
+    return update_trailer_helper(trailer_id, trailer_updates, trailers)
     
 @trailers_router.put("/{trailer_id}/add_repair", response_model=Trailer)
 async def update_repairs(trailer_id: str, repair: RepairModel = Body(...)):
-    repair = jsonable_encoder(repair)
-    if "_id" in repair:
-        del repair["_id"]
-    trailer = trailers.find_one({"_id": ObjectId(trailer_id)})
-    if trailer is None:
-        raise HTTPException(status_code=404, detail="Trailer not found")
-
-    repair_history_list = trailer.get("repair_history_list", [])
-    repair_history_list.append(repair.dict())
-    
-    update_result = trailers.update_one(
-        {"_id": ObjectId(trailer_id)},
-        {"$set": {"repair_history_list": repair_history_list}}
-    )
-    if update_result.modified_count == 1:
-        if (existing_trailer := trailers.find_one({"_id": ObjectId(trailer_id)})) is not None:
-            return serialize_collection(existing_trailer)
-    
-    raise HTTPException(status_code=500, detail="Failed to update repairs")
+    return update_repair_helper(trailer_id, repair, trailers)
 
 @trailers_router.delete("/{trailer_id}", response_description="Delete a trailer")
 async def delete_trailer(trailer_id: str):

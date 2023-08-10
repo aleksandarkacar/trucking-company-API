@@ -62,7 +62,7 @@ async def update_repairs(truck_id: str, repair: RepairModel = Body(...)):
         raise HTTPException(status_code=404, detail="Truck not found")
 
     repair_history_list = truck.get("repair_history_list", [])
-    repair_history_list.append(repair.dict())
+    repair_history_list.append(repair.model_dump())
     
     update_result = trucks.update_one(
         {"_id": ObjectId(truck_id)},

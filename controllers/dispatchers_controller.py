@@ -13,7 +13,6 @@ dispatchers = get_truck_drivers_collection()
 async def get_dispatchers():
     try:
         all_dispatchers = list(dispatchers.find())
-        
         return serialize_collection(all_dispatchers)
     except Exception as e:
         print("An error occurred:", str(e))
@@ -25,7 +24,6 @@ async def get_dispatcher(
 ):
     try:
         dispatcher = dispatchers.find_one({"_id": ObjectId(dispatcher_id)})
-        
         return serialize_collection(dispatcher)
     except Exception as e:
         print("An error occurred:", str(e))
